@@ -17,6 +17,7 @@ python setup.py install
 
 ## Example and How to use
 ```python
+from sqlyser import SQL
 sqlStr = '''
 insert into a_target /* target Table */
 (c1, c2, c3) 
@@ -26,8 +27,8 @@ inner join c /* Source Table c */
 on b.c4 = c.c4;
 ;'''
 sql = SQL(sqlStr)
-sql.getSourceTables()
+print(sql.getSourceTables())
 ```
 ```
-set(['b','c'])
+{'B','C'}
 ```
