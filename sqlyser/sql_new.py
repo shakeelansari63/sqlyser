@@ -7,6 +7,9 @@ class SQL:
     def __init__(self, raw_sql):
         self.raw_sql = raw_sql
 
+        # Empty Dictionary. This will be populated later
+        self.encoder_dict = dict()
+
         # Call Clean SQL method to generate clean SQL String
         self.__clean_encode_sql()
     
@@ -22,6 +25,24 @@ class SQL:
             temp_sql = decoded_sql.replace(key, self.encoder_dict[key])
             decoded_sql = temp_sql
         return decoded_sql
+
+    def __is_valid_function(self, function_string):
+        return not (" SELECT " in function_string or " JOIN " in function_string)
+
+    def __encode_functions(self):
+        """Extract all subqueries from main Clean SQL Query"""
+        functions_list = re.compile(r" [a-z0-9\_\.]+ \( .*? \)", re.I)\
+                            .findall(self.clean_encoded_sql)
+        if len(functions_list) > 0:
+            for index, func in enumerate(functions_list):
+                if self.__is_valid_function(func):
+                    # Generate Key for function encoding
+                    key = '&&-FUNCTION' + str(index) + '-&&'
+                    self.encoder_dict[key] = func
+
+                    # Encode the Function
+                    func_encoded_sql = self.clean_encoded_sql.replace(func, key)
+                    self.clean_encoded_sql = func_encoded_sql
 
     def __clean_encode_sql(self):
         """Clean SQL string by removing multiple spaces and new lines and comments"""
@@ -46,12 +67,10 @@ class SQL:
 
         # Generate Translation Dictionary for SQL string in single quote
         if len(single_quoted_substr) > 0:
-            # Empty Dictionary
-            self.encoder_dict = dict()
-
+            
             for index, sub_str in enumerate(single_quoted_substr):
                 # Generate keys
-                key = '&&-' + str(index) + '-&&'
+                key = '&&-LITERAL' + str(index) + '-&&'
                 self.encoder_dict[key] = sub_str
                 
                 # Enocode substrings in SQL
@@ -74,7 +93,18 @@ class SQL:
         no_ltspace_sql = self.clean_encoded_sql.strip()
         self.clean_encoded_sql = no_ltspace_sql
 
+        # Add spaces near paranthesis for standardisation
+        no_paranthesis_sapce_sql = self.clean_encoded_sql.replace('(',' ( ')\
+                                                         .replace(')',' ) ')
+        self.clean_encoded_sql = no_paranthesis_sapce_sql
+
         # Remove Multiple consecutive spaces
         no_mulspace_sql = multiple_space.sub(' ', self.clean_encoded_sql)
         self.clean_encoded_sql = no_mulspace_sql
 
+        # Capitalise the whole SQL
+        capital_sql = self.clean_encoded_sql.upper()
+        self.clean_encoded_sql = capital_sql
+
+        # Encode the Functions 
+        self.__encode_functions()
