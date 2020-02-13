@@ -29,9 +29,9 @@ class SQL:
     def __is_valid_function(self, function_string):
         return not (" SELECT " in function_string or " JOIN " in function_string)
 
-    def __encode_functions(self):
-        """Extract all subqueries from main Clean SQL Query"""
-        functions_list = re.compile(r" [a-z0-9\_\.]+ \( .*? \)", re.I)\
+    def __encode_case_and_functions(self):
+        """Encode case and functions from main Clean SQL Query"""
+        functions_list = re.compile(r"(?<=\s)[a-z0-9\_\.]+ \( .*? \)", re.I)\
                             .findall(self.clean_encoded_sql)
         if len(functions_list) > 0:
             for index, func in enumerate(functions_list):
@@ -94,9 +94,12 @@ class SQL:
         self.clean_encoded_sql = no_ltspace_sql
 
         # Add spaces near paranthesis for standardisation
-        no_paranthesis_sapce_sql = self.clean_encoded_sql.replace('(',' ( ')\
-                                                         .replace(')',' ) ')
-        self.clean_encoded_sql = no_paranthesis_sapce_sql
+        paranthesis_sapce_sql = self.clean_encoded_sql.replace('(',' ( ').replace(')',' ) ')
+        self.clean_encoded_sql = paranthesis_sapce_sql
+
+        # Add Spaces near commas ',' for standardisation
+        comma_space_sql = self.clean_encoded_sql.replace(',',' , ')
+        self.clean_encoded_sql = comma_space_sql
 
         # Remove Multiple consecutive spaces
         no_mulspace_sql = multiple_space.sub(' ', self.clean_encoded_sql)
@@ -107,4 +110,4 @@ class SQL:
         self.clean_encoded_sql = capital_sql
 
         # Encode the Functions 
-        self.__encode_functions()
+        self.__encode_case_and_functions()

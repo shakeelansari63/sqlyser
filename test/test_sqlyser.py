@@ -10,7 +10,7 @@ sqlstr = """
 select column_a, column_b, 'Hello this is column ''C' as column_c, ' string with -- inside' as column_d,
 '/* Multi Line comment like string insdie valid string */ /* Multi line comment''s string left open in valid literal' column_e,
 ' Multi line comment''s closig tag only inside valid string ***/' column_f,
-substr(column_g, 1, 15) as column_g_sub
+substr(column_g, 1, 15) as column_g_sub, extract( day from current_date) as date_col
 from db1.tbl1 tb1 -- Table 1
 inner join db1.tbl2 tb2 /** Multi line SQL inside
 sql
