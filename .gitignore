@@ -3,3 +3,8 @@
 
 # Python
 **/*.pyc
+
+# Build Outout
+build/
+dist/
+*egg-info/

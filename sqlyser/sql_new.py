@@ -1,48 +1,83 @@
 # --*-- code : utf8 --*--
 import re
+from collections import OrderedDict
+
 
 class SQL:
     """SQl Class for SQL objects"""
 
-    def __init__(self, raw_sql):
-        self.raw_sql = raw_sql
+    def __init__(self, raw_sql=''):
+        self.sql = raw_sql
+
+    @property
+    def sql(self):
+        return self._raw_sql
+
+    @sql.setter
+    def sql(self, raw_sql):
+        self._raw_sql = raw_sql
 
         # Empty Dictionary. This will be populated later
-        self.encoder_dict = dict()
+        try:
+            del(self._encoder_dict)
+        except:
+            pass
+        self._encoder_dict = OrderedDict()
 
         # Call Clean SQL method to generate clean SQL String
         self.__clean_encode_sql()
-    
+
     def __str__(self):
-        #return self.__decode_sql()
-        return self.clean_encoded_sql
 
-    def __decode_sql(self):
+        # Return Decoded re-formated SQL
+        return f"Clean SQL: {self.clean_sql}\n\nClean Encoded SQL: {self._clean_encoded_sql}\n\nEncoder Dictionary: {self.__get_encoder_dict()}"
+
+    def __get_encoder_dict(self):
+        return "\n".join([f"{key} : {value}" for key, value in self._encoder_dict.items()])
+
+    def __decode_sql(self, input_sql):
         # Initialize Decoded SQL with clean SQL
-        decoded_sql = self.clean_encoded_sql
+        decoded_sql = input_sql
 
-        for key in self.encoder_dict:
-            temp_sql = decoded_sql.replace(key, self.encoder_dict[key])
+        for key in reversed(self._encoder_dict.keys()):
+            temp_sql = decoded_sql.replace(key, self._encoder_dict[key])
             decoded_sql = temp_sql
         return decoded_sql
 
     def __is_valid_function(self, function_string):
         return not (" SELECT " in function_string or " JOIN " in function_string)
 
-    def __encode_case_and_functions(self):
+    def __encode_column_list(self):
         """Encode case and functions from main Clean SQL Query"""
         functions_list = re.compile(r"(?<=\s)[a-z0-9\_\.]+ \( .*? \)", re.I)\
-                            .findall(self.clean_encoded_sql)
+            .findall(self._clean_encoded_sql)
         if len(functions_list) > 0:
-            for index, func in enumerate(functions_list):
+            for index, func in enumerate(functions_list, start=1):
                 if self.__is_valid_function(func):
                     # Generate Key for function encoding
                     key = '&&-FUNCTION' + str(index) + '-&&'
-                    self.encoder_dict[key] = func
+                    self._encoder_dict[key] = func
 
                     # Encode the Function
-                    func_encoded_sql = self.clean_encoded_sql.replace(func, key)
-                    self.clean_encoded_sql = func_encoded_sql
+                    func_encoded_sql = self._clean_encoded_sql.replace(
+                        func, key)
+                    self._clean_encoded_sql = func_encoded_sql
+
+        # Find all column lists between SELECT and FROM Keywords
+        select_from_list = re.compile(r"SELECT (.*?) FROM", re.I | re.DOTALL)\
+            .findall(self._clean_encoded_sql)
+
+        if len(select_from_list) > 0:
+            for index, col_list_str in enumerate(select_from_list, start=1):
+                key = '&&-COLUMNLIST' + str(index) + '-&&'
+
+                # Add to dictionary
+                self._encoder_dict[key] = col_list_str
+
+                # Encode
+                encoded_col_sql = self._clean_encoded_sql.replace(
+                    col_list_str, key)
+                self._clean_encoded_sql = encoded_col_sql
 
     def __clean_encode_sql(self):
         """Clean SQL string by removing multiple spaces and new lines and comments"""
@@ -51,7 +86,7 @@ class SQL:
         single_quoted_string = re.compile(r"('(?:''|[^'])*')")
 
         # Regular expression for multi line comments using /* */ method
-        multi_line_comment = re.compile(r"/\*[^\+]\s*(.*?)\*/",re.DOTALL)
+        multi_line_comment = re.compile(r"/\*[^\+]\s*(.*?)\*/", re.DOTALL)
 
         # Regular expression for single line comment using -- method
         single_line_comment = re.compile(r"(\-\-.*?)[\r\n]")
@@ -60,54 +95,112 @@ class SQL:
         multiple_space = re.compile(r"\s\s+")
 
         # Initialize clean sql with raw sql
-        self.clean_encoded_sql = self.raw_sql
+        self._clean_encoded_sql = self._raw_sql
 
         # Find and encode single quoted strings to preserve the content of literals
-        single_quoted_substr = single_quoted_string.findall(self.clean_encoded_sql)
+        single_quoted_substr = single_quoted_string.findall(
+            self._clean_encoded_sql)
 
         # Generate Translation Dictionary for SQL string in single quote
         if len(single_quoted_substr) > 0:
-            
-            for index, sub_str in enumerate(single_quoted_substr):
+
+            for index, sub_str in enumerate(single_quoted_substr, start=1):
                 # Generate keys
                 key = '&&-LITERAL' + str(index) + '-&&'
-                self.encoder_dict[key] = sub_str
-                
+                self._encoder_dict[key] = sub_str
+
                 # Enocode substrings in SQL
-                literal_enc_sql = self.clean_encoded_sql.replace(sub_str, key)
-                self.clean_encoded_sql = literal_enc_sql
+                literal_enc_sql = self._clean_encoded_sql.replace(sub_str, key)
+                self._clean_encoded_sql = literal_enc_sql
 
         # Remove multi line comments from SQl String
-        no_mlc_sql = multi_line_comment.sub('', self.clean_encoded_sql)
-        self.clean_encoded_sql = no_mlc_sql
+        no_mlc_sql = multi_line_comment.sub('', self._clean_encoded_sql)
+        self._clean_encoded_sql = no_mlc_sql
 
         # Remove Single Line Comments from SQL
-        no_slc_sql = single_line_comment.sub('', self.clean_encoded_sql)
-        self.clean_encoded_sql = no_slc_sql
+        no_slc_sql = single_line_comment.sub('', self._clean_encoded_sql)
+        self._clean_encoded_sql = no_slc_sql
 
         # Replace all New Line characters and tabs with space
-        no_crlf_sql = self.clean_encoded_sql.replace('\n',' ').replace('\r',' ').replace('\t','')
-        self.clean_encoded_sql = no_crlf_sql
+        no_crlf_sql = self._clean_encoded_sql.replace(
+            '\n', ' ').replace('\r', ' ').replace('\t', '')
+        self._clean_encoded_sql = no_crlf_sql
 
         # Remove Leading and trailing Spaces
-        no_ltspace_sql = self.clean_encoded_sql.strip()
-        self.clean_encoded_sql = no_ltspace_sql
+        no_ltspace_sql = self._clean_encoded_sql.strip()
+        self._clean_encoded_sql = no_ltspace_sql
 
         # Add spaces near paranthesis for standardisation
-        paranthesis_sapce_sql = self.clean_encoded_sql.replace('(',' ( ').replace(')',' ) ')
-        self.clean_encoded_sql = paranthesis_sapce_sql
+        paranthesis_sapce_sql = self._clean_encoded_sql.replace(
+            '(', ' ( ').replace(')', ' ) ')
+        self._clean_encoded_sql = paranthesis_sapce_sql
 
         # Add Spaces near commas ',' for standardisation
-        comma_space_sql = self.clean_encoded_sql.replace(',',' , ')
-        self.clean_encoded_sql = comma_space_sql
+        comma_space_sql = self._clean_encoded_sql.replace(',', ' , ')
+        self._clean_encoded_sql = comma_space_sql
 
         # Remove Multiple consecutive spaces
-        no_mulspace_sql = multiple_space.sub(' ', self.clean_encoded_sql)
-        self.clean_encoded_sql = no_mulspace_sql
+        no_mulspace_sql = multiple_space.sub(' ', self._clean_encoded_sql)
+        self._clean_encoded_sql = no_mulspace_sql
 
         # Capitalise the whole SQL
-        capital_sql = self.clean_encoded_sql.upper()
-        self.clean_encoded_sql = capital_sql
+        capital_sql = self._clean_encoded_sql.upper()
+        self._clean_encoded_sql = capital_sql
 
-        # Encode the Functions 
-        self.__encode_case_and_functions()
+        # Remove space around period (.)
+        np_periodspace_sql = self._clean_encoded_sql.replace(
+            ' . ', '.').replace(' .', '.').replace('. ', '.')
+        self._clean_encoded_sql = np_periodspace_sql
+
+        # Encode the Functions
+        self.__encode_column_list()
+
+    def __reformat_encoded_sql(self):
+        # Initialize Reformatted SQL
+        reformated_clean_encoded_sql = self._clean_encoded_sql
+
+        new_line_keywords = re.compile(r"^SELECT |^SEL | SELECT | SEL | FROM | JOIN | BY | \( | \)")\
+            .findall(self._clean_encoded_sql)
+
+        for sql_keyword in set(new_line_keywords):
+            reformatted_sql = reformated_clean_encoded_sql.replace(
+                sql_keyword, sql_keyword + '\n')
+            reformated_clean_encoded_sql = reformatted_sql
+
+        return reformated_clean_encoded_sql
+
+    @property
+    def clean_sql(self):
+        clean_sql = self.__decode_sql(self.__reformat_encoded_sql())
+        return clean_sql
+
+    @property
+    def target_table(self):
+        target_table = None
+        # ToDo Generate target Table Name
+        return target_table
+
+    @property
+    def source_tables(self):
+        source_tables = set([])
+        # ToDo Generate source Tables List
+        return source_tables
+
+    @property
+    def sql_type(self):
+        sql_type = None
+        # ToDo Generate SQL Type
+        return sql_type
+
+    @property
+    def sql_lang(self):
+        sql_lang = None
+        # ToDo Generate Language for SQL DDL, DML or DCL
+        return sql_lang
+
+    @property
+    def select_sql(self):
+        select_sql = None
+        # ToDo Extract Select from SQL
+        # And Format
+        return select_sql
