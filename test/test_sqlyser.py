@@ -33,8 +33,8 @@ order by column_a
 
 sql1 = SQL(sqlstr)
 print(sql1, '\n')
-
-print(sql1.target_table)
+print(sql1.sql_type)
+print(sql1.sql_lang)
 
 sql2 = SQL()
 print(sql2)

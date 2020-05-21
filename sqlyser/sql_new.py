@@ -188,15 +188,61 @@ class SQL:
 
     @property
     def sql_type(self):
-        sql_type = None
-        # ToDo Generate SQL Type
-        return sql_type
+        sql_type = self._clean_encoded_sql.split(' ')[:5] \
+            if len(self._clean_encoded_sql.split(' ')) > 5 \
+            else self._clean_encoded_sql.split(' ')
+
+        # Translate Acronyms in Teradata
+        if sql_type[0] in ('INS', 'INSERT'):
+            return 'INSERT'
+        elif sql_type[0] in ('SEL', 'SELECT', 'WITH'):
+            return 'SELECT'
+        elif sql_type[0] in ('DEL', 'DELETE'):
+            return 'DELETE'
+        elif sql_type[0] in ('UPD', 'UPDATE'):
+            return 'UPDATE'
+        elif sql_type[0] in ('CREATE', 'REPLACE') and 'TABLE' in sql_type:
+            return 'CREATE TABLE'
+        elif sql_type[0] in ('CREATE', 'REPLACE') and 'VIEW' in sql_type:
+            return 'CREATE VIEW'
+        elif sql_type[0] in ('CREATE', 'REPLACE') and 'MACRO' in sql_type:
+            return 'CREATE MACRO'
+        elif sql_type[0] in ('CREATE', 'REPLACE') and 'PROCEDURE' in sql_type:
+            return 'CREATE PROCEDURE'
+        elif sql_type[0] in ('CREATE', 'REPLACE') and 'FUNCTION' in sql_type:
+            return 'CREATE FUNCTION'
+        elif sql_type[0] == 'DROP' and 'TABLE' in sql_type:
+            return 'DROP TABLE'
+        elif sql_type[0] == 'DROP' and 'VIEW' in sql_type:
+            return 'DROP VIEW'
+        elif sql_type[0] == 'DROP' and 'MACRO' in sql_type:
+            return 'DROP MACRO'
+        elif sql_type[0] == 'DROP' and 'PROCEDURE' in sql_type:
+            return 'DROP PROCEDURE'
+        elif sql_type[0] == 'DROP' and 'FUNCTION' in sql_type:
+            return 'DROP FUNCTION'
+        elif sql_type[0] == 'ALTER' and 'TABLE' in sql_type:
+            return 'ALTER TABLE'
+        elif sql_type[0] in ('EXEC', 'EXECUTE'):
+            return 'EXECUTE MACRO'
+        elif sql_type[0] == 'CALL':
+            return 'CALL PROCEDURE'
+        elif sql_type[0] in ('GRANT', 'REVOKE', 'MERGE'):
+            return sql_type[0]
+        else:
+            return None
 
     @property
     def sql_lang(self):
-        sql_lang = None
-        # ToDo Generate Language for SQL DDL, DML or DCL
-        return sql_lang
+        if self.sql_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE'):
+            return 'DML'
+        elif self.sql_type in ('CREATE TABLE', 'CREATE VIEW', 'CREATE MACRO', 'CREATE PROCEDURE',
+                               'CREATE FUNCTION', 'DROP TABLE', 'DROP VIEW', 'DROP MACRO',
+                               'DROP PROCEDURE', 'DROP FUNCTION', 'ALTER TABLE'):
+            return 'DDL'
+        elif self.sql_type in ('GRANT', 'REVOKE'):
+            return 'DCL'
+        return None
 
     @property
     def select_sql(self):
