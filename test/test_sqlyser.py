@@ -1,4 +1,4 @@
-from sqlyser import SQL
+from sqlyser import SQL, SQLScript
 
 sqlstr = """
 -- Sample Single Line Comment
@@ -33,7 +33,7 @@ order by column_a
 """
 
 sql1 = SQL(sqlstr)
-print(sql1, '\n')
+print(sql1, sep="\n")
 print(sql1.sql_type)
 print(sql1.sql_lang)
 print(sql1.target_table)
@@ -50,3 +50,25 @@ tbl2.col5
 having max(tbl.numval) > 20 /*** Having clause ***/
 """
 print(sql2)
+
+
+sql_script_1 = """
+Select tbl.col1, tbl.col2, tbl.col3, tbl2.col4, substr(tbl2.col4, 2, 2),
+tbl2.col5, max(tbl.numval) from db.tbl, db.tbl2
+where tbl.col1 (+) = tbl2.col1 -- Oracle style Join
+and tbl.col2 = 5 -- Literal Join
+group by tbl.col1, tbl.col2, tbl.col3, tbl2.col4, substr(tbl2.col4, 2, 2), /* Groups */
+tbl2.col5
+having max(tbl.numval) > 20 /*** Having clause ***/
+;
+Select tbl_1.col1, tbl_1.col2, tbl_1.col3, tbl2.col4, substr(tbl_2.col4, 2, 2),
+tbl_2.col5, max(tbl_1.numval) from db.tbl_1, db.tbl_2
+where tbl_1.col1 (+) = tbl_2.col1 -- Oracle style Join
+and tbl_1.col2 = 5 -- Literal Join
+group by tbl_1.col1, tbl_1.col2, tbl_1.col3, tbl_2.col4, substr(tbl_2.col4, 2, 2), /* Groups */
+tbl_2.col5
+having max(tbl_1.numval) > 20 /*** Having clause ***/
+"""
+
+ss = SQLScript(sql_script_1, "s")
+print(ss.get_lineage_mapping())

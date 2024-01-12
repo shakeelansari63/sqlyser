@@ -4,6 +4,5 @@ Initilializer Module to break SQLs into smaller pieces and analyse code.
 
 Developer: Shakeel Ansari
 """
-from .sql import SQL as SQLOLD
-from .sql_new import SQL
+from .sql import SQL
 from .sqlscript import SQLScript
